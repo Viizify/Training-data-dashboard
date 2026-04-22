@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training Case Study — Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="data.js"></script>
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --panel: #ffffff;
+    --ink: #0e0f10;
+    --ink-2: #3a3d42;
+    --ink-3: #7f8590;
+    --rule: #d9d6cd;
+    --rule-2: #ebe8e0;
+    --amber: #b76a00;
+    --green: #2d7a3a;
+    --red: #b8362b;
+    --blue: #1a5ab5;
+    --violet: #6b3fa0;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Space Grotesk', system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink); font-family: var(--mono); font-size: 12.5px; line-height: 1.45; }
+  body {
+    background-image:
+      linear-gradient(rgba(14,15,16,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(14,15,16,0.025) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-position: -1px -1px;
+  }
+
+  /* ── Sticky header bar (terminal chrome) ── */
+  .chrome {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--ink); color: #e4e2dc;
+    padding: 8px 16px;
+    display: flex; align-items: center; gap: 16px;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+  .chrome .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
+  .chrome .path { color: #e4e2dc; }
+  .chrome .path .dim { color: #7f8590; }
+  .chrome .spacer { flex: 1; }
+  .chrome .meta { color: #a6a8ad; display: flex; gap: 20px; }
+  .chrome .meta b { color: #fff; font-weight: 500; }
+
+  .wrap { max-width: 1600px; margin: 0 auto; padding: 0 20px 64px; }
+
+  /* ── Title block ─────────────────────── */
+  .title-block {
+    padding: 36px 8px 24px;
+    display: grid; grid-template-columns: 1fr 320px;
+    gap: 32px; align-items: end;
+    border-bottom: 1px solid var(--ink);
+  }
+  .title-block h1 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 42px;
+    letter-spacing: -0.025em;
+    line-height: 1.02;
+    color: var(--ink);
+    text-wrap: balance;
+    margin-bottom: 14px;
+  }
+  .title-block h1 code {
+    font-family: var(--mono);
+    font-weight: 500;
+    color: var(--amber);
+    background: rgba(183,106,0,0.08);
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+  .title-block p {
+    font-family: var(--mono); font-size: 13px; color: var(--ink-2);
+    max-width: 80ch; line-height: 1.55;
+  }
+  .title-meta {
+    padding: 14px 16px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+  }
+  .title-meta-row {
+    display: flex; justify-content: space-between;
+    padding: 4px 0;
+    font-size: 11.5px;
+  }
+  .title-meta-row + .title-meta-row { border-top: 1px dashed var(--rule); }
+  .title-meta-row .k { color: var(--ink-3); }
+  .title-meta-row .v { color: var(--ink); font-weight: 500; }
+
+  /* ── Section head ─────────────────────── */
+  .sec-head {
+    display: flex; align-items: center; gap: 12px;
+    margin: 40px 8px 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .sec-head .sigil {
+    font-family: var(--mono); font-size: 11px; color: var(--amber);
+    background: var(--ink); color: #ffd489;
+    padding: 2px 8px; border-radius: 2px;
+    letter-spacing: 0.05em;
+  }
+  .sec-head h2 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .sec-head .crumbs {
+    flex: 1;
+    font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+  .sec-head .sep { color: var(--rule); margin: 0 8px; }
+
+  /* ── KPI matrix ─────────────────────── */
+  .kpi-matrix {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    padding: 0 8px;
+  }
+  .cell {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 14px 14px 12px;
+    position: relative;
+    transition: border-color .12s;
+  }
+  .cell:hover { border-color: var(--ink); }
+  .cell-lbl {
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-3); margin-bottom: 10px;
+    display: flex; justify-content: space-between;
+  }
+  .cell-lbl .tick { color: var(--rule); }
+  .cell-val {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 32px;
+    line-height: 1;
+    letter-spacing: -0.025em;
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cell-val .unit {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-3);
+    margin-left: 2px;
+  }
+  .cell-val.up    { color: var(--green); }
+  .cell-val.down  { color: var(--red); }
+  .cell-val.neu   { color: var(--ink); }
+  .cell-spark {
+    height: 20px; margin: 4px 0 6px;
+  }
+  .cell-detail {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-3); font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Main grid ─────────────────────── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 2.1fr 1fr;
+    gap: 8px;
+    padding: 0 8px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 14px 16px 12px;
+  }
+  .panel-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .panel-head h3 {
+    font-family: var(--mono); font-size: 11px; color: var(--ink);
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+  }
+  .panel-head .meta {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+    letter-spacing: 0.05em;
+  }
+
+  .hero-chart-panel canvas { height: 400px !important; }
+  .side-stats {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .annot-panel {
+    background: var(--ink); color: #e4e2dc;
+    border-color: var(--ink);
+    padding: 18px;
+  }
+  .annot-panel .title {
+    font-family: var(--mono); font-size: 10px; color: #ffd489;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    margin-bottom: 14px;
+  }
+  .annot-panel h4 {
+    font-family: var(--sans);
+    font-weight: 600; font-size: 20px;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    margin-bottom: 10px;
+    color: #fff;
+  }
+  .annot-panel p {
+    font-family: var(--mono); font-size: 11.5px; color: #c3c0b6;
+    line-height: 1.5;
+  }
+
+  .legend-block {
+    padding: 12px 14px;
+  }
+  .legend-block h5 {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px;
+  }
+  .legend-row {
+    display: grid; grid-template-columns: 14px 1fr auto;
+    gap: 8px; align-items: center;
+    padding: 6px 0;
+    border-top: 1px dashed var(--rule);
+    font-size: 11.5px;
+  }
+  .legend-row:first-of-type { border-top: none; }
+  .legend-row .dot { width: 10px; height: 10px; border-radius: 1px; }
+  .legend-row .dates { color: var(--ink-3); font-size: 10.5px; }
+  .legend-row b { font-weight: 500; color: var(--ink); font-family: var(--mono); }
+
+  /* ── Row of three sub-charts ───────────── */
+  .row-3 {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 0 8px;
+    margin-top: 8px;
+  }
+  .row-3 canvas { height: 220px !important; }
+
+  /* ── Phase ledger table ───────────────── */
+  .ledger {
+    margin: 0 8px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  table.tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  table.tbl th {
+    background: #f0ede5;
+    color: var(--ink-2);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10px;
+    padding: 9px 14px;
+    text-align: right;
+    border-bottom: 1px solid var(--rule);
+  }
+  table.tbl th:first-child, table.tbl th:nth-child(2) { text-align: left; }
+  table.tbl td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--rule-2);
+    text-align: right;
+  }
+  table.tbl tr:last-child td { border-bottom: none; }
+  table.tbl td:first-child, table.tbl td:nth-child(2) { text-align: left; }
+  table.tbl tr:hover td { background: #fbfaf6; }
+  table.tbl .tag {
+    display: inline-block;
+    font-size: 10px; padding: 2px 8px; border-radius: 2px;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+  }
+  .tag-first  { background: rgba(58,110,165,0.1);  color: #3a6ea5; }
+  .tag-second { background: rgba(192,138,46,0.12); color: #c08a2e; }
+  .tag-third  { background: rgba(107,63,160,0.1);  color: #6b3fa0; }
+  .tag-recomp { background: rgba(184,73,58,0.1);   color: #b8493a; }
+  .td-name { font-family: var(--sans); font-weight: 600; font-size: 13px; letter-spacing: -0.005em; }
+  .td-dates { color: var(--ink-3); font-size: 11px; }
+  .n-pos { color: var(--green); }
+  .n-neg { color: var(--red); }
+  .n-null { color: var(--ink-3); font-style: italic; }
+
+  /* ── Findings as annotated notes ──────── */
+  .notes {
+    margin: 0 8px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .note {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 16px 18px;
+    position: relative;
+    transition: transform .12s, border-color .12s;
+  }
+  .note:hover { border-color: var(--ink); }
+  .note::before {
+    content: '';
+    position: absolute; top: 0; left: 0;
+    width: 2px; height: 100%;
+    background: var(--amber);
+  }
+  .note-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .note-id {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--amber); background: rgba(183,106,0,0.08);
+    padding: 2px 6px; border-radius: 2px;
+    letter-spacing: 0.1em; font-weight: 600;
+  }
+  .note-tag {
+    font-family: var(--mono); font-size: 9.5px;
+    color: var(--ink-3); text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .note h4 {
+    font-family: var(--sans); font-weight: 600;
+    font-size: 15px; letter-spacing: -0.01em;
+    line-height: 1.2; margin-bottom: 10px;
+    color: var(--ink);
+  }
+  .note p {
+    font-family: var(--mono); font-size: 11.5px; line-height: 1.55;
+    color: var(--ink-2);
+  }
+
+  /* ── Colophon ───────────────────────── */
+  .colophon {
+    margin: 32px 8px 0;
+    padding: 16px 20px;
+    background: #fff8e8;
+    border: 1px solid #e8d9b0;
+    border-left: 3px solid var(--amber);
+    border-radius: 2px;
+  }
+  .colophon .title {
+    font-family: var(--mono); font-size: 10px; color: var(--amber);
+    text-transform: uppercase; letter-spacing: 0.15em;
+    margin-bottom: 8px; font-weight: 600;
+  }
+  .colophon .body {
+    font-family: var(--mono); font-size: 11.5px; line-height: 1.6;
+    color: var(--ink-2); max-width: 100ch;
+  }
+
+  .statusbar {
+    margin-top: 40px;
+    padding: 10px 16px;
+    background: var(--ink); color: #a6a8ad;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.05em;
+    display: flex; justify-content: space-between;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<header class="chrome">
+  <span class="dot"></span>
+  <span class="path">~/training-log <span class="dim">›</span> case-study <span class="dim">›</span> <b>2022-2026.md</b></span>
+  <span class="spacer"></span>
+  <span class="meta">
+    <span>n=<b>40</b></span>
+    <span>Δt=<b>39mo</b></span>
+    <span>rev=<b>2026.01</b></span>
+  </span>
+</header>
+
+<div class="wrap">
+
+  <!-- Title block -->
+  <div class="title-block">
+    <div>
+      <h1>Body &amp; strength, measured monthly from <code>2022-10</code> to <code>2026-01</code>.</h1>
+      <p>A personal longitudinal analysis of four metrics: body weight, body fat percentage, and both absolute and relative 1RM in the squat, deadlift, and bench press—across a 39-month training period, with the strength measures serving as proxies for strength adaptations.</p>
+    </div>
+    <div class="title-meta">
+      <div class="title-meta-row"><span class="k">subject</span><span class="v">N = 1 (self)</span></div>
+      <div class="title-meta-row"><span class="k">window</span><span class="v">2022-10 → 2026-01</span></div>
+      <div class="title-meta-row"><span class="k">frequency</span><span class="v">monthly</span></div>
+      <div class="title-meta-row"><span class="k">source</span><span class="v">training log + photo est.</span></div>
+    </div>
+  </div>
+
+  <!-- KPI matrix -->
+  <div class="sec-head">
+    <span class="sigil">§1</span>
+    <h2>Headline metrics</h2>
+    <span class="crumbs">start <span class="sep">→</span> now</span>
+  </div>
+
+  <div class="kpi-matrix" id="kpiMatrix"></div>
+
+  <!-- Hero: body weight + callout -->
+  <div class="sec-head">
+    <span class="sigil">§2</span>
+    <h2>Body weight · monthly time series</h2>
+    <span class="crumbs">kg <span class="sep">·</span> background shading = phase</span>
+  </div>
+
+  <div class="main-grid">
+    <div class="panel hero-chart-panel">
+      <div class="panel-head">
+        <h3>BODYWEIGHT.KG</h3>
+        <div class="meta">39 mo · min=82 · max=115 · Δ=−31</div>
+      </div>
+      <canvas id="weightChart"></canvas>
+    </div>
+    <div class="side-stats">
+      <div class="panel annot-panel">
+        <h4>Three cuts, one bulk.</h4>
+        <p>Each phase ends with a re-feed; each cut goes deeper than the last. Lowest observation <b style="color:#ffd489">82 kg</b> at index 31 (May '25) — a <b style="color:#ffd489">−33 kg</b> drop from baseline.</p>
+      </div>
+      <div class="panel legend-block">
+        <h5>PHASE LEGEND</h5>
+        <div class="legend-row"><span class="dot" style="background:#3a6ea5"></span><b>First cut</b><span class="dates">Oct '22 – Aug '23</span></div>
+        <div class="legend-row"><span class="dot" style="background:#c08a2e"></span><b>Second cut</b><span class="dates">Sep '23 – Aug '24</span></div>
+        <div class="legend-row"><span class="dot" style="background:#6b3fa0"></span><b>Third cut</b><span class="dates">Sep '24 – May '25</span></div>
+        <div class="legend-row"><span class="dot" style="background:#b8493a"></span><b>Recomp</b><span class="dates">Jun '25 – Jan '26</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row of 3 small multiples -->
+  <div class="sec-head">
+    <span class="sigil">§3</span>
+    <h2>Component series</h2>
+    <span class="crumbs">BODY FAT <span class="sep">·</span> ABSOLUTE 1RM <span class="sep">·</span> RELATIVE 1RM</span>
+  </div>
+
+  <div class="row-3">
+    <div class="panel">
+      <div class="panel-head">
+        <h3>BODYFAT%</h3>
+        <div class="meta">% · min=11.5 · max=27</div>
+      </div>
+      <canvas id="fatChart"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h3>ABSOLUTE 1RM</h3>
+        <div class="meta">kg · bench · squat · deadlift</div>
+      </div>
+      <canvas id="absChart"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h3>RELATIVE 1RM</h3>
+        <div class="meta">× BW · dashed = 1.0×</div>
+      </div>
+      <canvas id="relChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Phase ledger -->
+  <div class="sec-head">
+    <span class="sigil">§4</span>
+    <h2>Phase length</h2>
+    <span class="crumbs">4 rows <span class="sep">·</span> start → end</span>
+  </div>
+
+  <div class="ledger">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Phase · Period</th>
+          <th>Type</th>
+          <th>Months</th>
+          <th>Δ Weight</th>
+          <th>Δ Body fat</th>
+          <th>Δ Bench</th>
+          <th>Δ Deadlift</th>
+          <th>Δ Squat</th>
+        </tr>
+      </thead>
+      <tbody id="ledgerBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Colophon -->
+  <div class="colophon">
+    <div class="title">// DATA LIMITATIONS</div>
+    <div class="body">
+      <b style="color:var(--ink-0)">Body fat percentage</b> is estimated using AI-based photo analysis and is therefore subject to <b>systematic error</b>. <b style="color:var(--ink-0)">Body weight</b> is based on multiple recorded measurements, with some early anchor points relying on memory; overall trends are likely valid, though some intermediate values may be inaccurate. <b style="color:var(--ink-0)">Training logs</b> provide reliable records of <b>external load</b>. <b style="color:var(--ink-0)">Squat data is missing for twelve months</b> (Sep 2023–Aug 2024) due to injury, which affects the interpretation of strength development during this period.
+    </div>
+  </div>
+
+  </div>
+
+</div>
+
+<script>
+const T = window.TD;
+
+// ── Sparkline helper (tiny canvas) ──
+function sparkline(canvas, data, color) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+  const clean = data.filter(v => v !== null);
+  const min = Math.min(...clean), max = Math.max(...clean);
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    if (v === null) return;
+    const x = (i / (data.length - 1)) * (w - 2) + 1;
+    const y = h - 1 - ((v - min) / (max - min || 1)) * (h - 2);
+    if (i === 0 || data[i-1] === null) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.stroke();
+}
+
+// ── KPI cells with sparklines
+const kpiDefs = [
+  { label: 'Body weight',    val: '−31',   unit: 'kg',    detail: '115.0 → 84.0 kg',    cls: 'up',   data: T.bodyweight,  color: '#1a5ab5' },
+  { label: 'Body fat',       val: '−13',   unit: '%',    detail: '27.0% → 14.0%',      cls: 'up',   data: T.fatPct,      color: '#b8362b' },
+  { label: 'Bench 1RM',      val: '+32',   unit: 'kg',    detail: '84 → 116 kg',        cls: 'up',   data: T.benchAbs,    color: '#b76a00' },
+  { label: 'Squat 1RM',      val: '+36',   unit: 'kg',    detail: '90 → 126 kg',        cls: 'up',   data: T.squatAbs,    color: '#2d7a3a' },
+  { label: 'Deadlift 1RM',   val: '+63',   unit: 'kg',    detail: '108 → 171 kg',       cls: 'up',   data: T.deadliftAbs, color: '#6b3fa0' },
+];
+const kpiEl = document.getElementById('kpiMatrix');
+kpiDefs.forEach((k, i) => {
+  kpiEl.insertAdjacentHTML('beforeend', `
+    <div class="cell">
+      <div class="cell-lbl"><span>${k.label}</span><span class="tick">§${i+1}</span></div>
+      <div class="cell-val ${k.cls}">${k.val}<span class="unit">${k.unit}</span></div>
+      <canvas class="cell-spark" data-idx="${i}" style="width:100%;height:20px"></canvas>
+      <div class="cell-detail">${k.detail}</div>
+    </div>
+  `);
+});
+// draw sparklines after insert
+requestAnimationFrame(() => {
+  document.querySelectorAll('.cell-spark').forEach(c => {
+    const i = parseInt(c.dataset.idx, 10);
+    sparkline(c, kpiDefs[i].data, kpiDefs[i].color);
+  });
+});
+
+// ── Ledger rows
+const ledgerBody = document.getElementById('ledgerBody');
+const phaseMonths = [11, 12, 9, 8];
+const phaseTags = [
+  { label: 'FIRST CUT',  cls: 'tag-first' },
+  { label: 'SECOND CUT', cls: 'tag-second' },
+  { label: 'THIRD CUT',  cls: 'tag-third' },
+  { label: 'RECOMP',     cls: 'tag-recomp' },
+];
+T.phases.forEach((p, i) => {
+  const cell = (v, kind) => {
+    if (v === null || v === undefined) return `<td class="n-null">— missing —</td>`;
+    const cls = (kind === 'weight' || kind === 'fat') ? (v < 0 ? 'n-pos' : 'n-neg') : (v < 0 ? 'n-neg' : 'n-pos');
+    const sign = v > 0 ? '+' : '';
+    const unit = kind === 'fat' ? ' %' : ' kg';
+    return `<td class="${cls}">${sign}${v.toFixed(1)}${unit}</td>`;
+  };
+  ledgerBody.insertAdjacentHTML('beforeend', `
+    <tr>
+      <td style="color:var(--ink-3)">0${i+1}</td>
+      <td>
+        <div class="td-name">${p.name}</div>
+        <div class="td-dates">${p.start} → ${p.end}</div>
+      </td>
+      <td><span class="tag ${phaseTags[i].cls}">${phaseTags[i].label}</span></td>
+      <td>${phaseMonths[i]} mo</td>
+      ${cell(p.stats.weight, 'weight')}
+      ${cell(p.stats.fat, 'fat')}
+      ${cell(p.stats.bench, 'lift')}
+      ${cell(p.stats.deadlift, 'lift')}
+      ${cell(p.stats.squat, 'lift')}
+    </tr>
+  `);
+});
+
+// ── Chart defaults
+Chart.defaults.color = '#7f8590';
+Chart.defaults.borderColor = '#d9d6cd';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 10;
+
+const PHASE_COLORS = [
+  { from: 0,  to: 10, color: 'rgba(58,110,165,0.07)' },
+  { from: 11, to: 22, color: 'rgba(192,138,46,0.08)' },
+  { from: 23, to: 30, color: 'rgba(107,63,160,0.08)' },
+  { from: 31, to: 39, color: 'rgba(184,73,58,0.07)' },
+];
+
+// Phase color for each data index (for segment coloring on the weight line)
+const PHASE_LINE_COLORS = ['#3a6ea5','#c08a2e','#6b3fa0','#b8493a'];
+function colorForIndex(i) {
+  if (i <= 10) return PHASE_LINE_COLORS[0];
+  if (i <= 22) return PHASE_LINE_COLORS[1];
+  if (i <= 30) return PHASE_LINE_COLORS[2];
+  return PHASE_LINE_COLORS[3];
+}
+
+function phasePlugin(phases) {
+  return {
+    id: 'phaseShading',
+    beforeDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      phases.forEach(({ from, to, color }) => {
+        const x0 = scales.x.getPixelForValue(from);
+        const x1 = scales.x.getPixelForValue(to);
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.fillRect(x0, chartArea.top, x1 - x0, chartArea.height);
+        ctx.restore();
+      });
+    }
+  };
+}
+
+const gridOpts = { color: 'rgba(14,15,16,0.05)', drawTicks: false };
+const baseScales = (yMin, yMax) => ({
+  x: {
+    grid: gridOpts,
+    ticks: {
+      maxRotation: 0, autoSkip: false, color: '#7f8590',
+      callback: function(v, i) {
+        const l = this.getLabelForValue(v);
+        if (!l) return '';
+        const [y, m] = l.split('-');
+        if (m === '01') return y;
+        if (i === 0) return y; // 2022 (Oct start)
+        return '';
+      }
+    }
+  },
+  y: { grid: gridOpts, min: yMin, suggestedMax: yMax, ticks: { color: '#7f8590' } }
+});
+const commonOpts = (yMin, yMax) => ({
+  responsive: true, maintainAspectRatio: false,
+  interaction: { mode: 'index', intersect: false },
+  plugins: {
+    legend: { labels: { boxWidth: 8, padding: 10, color: '#3a3d42', font: { family: "'JetBrains Mono'", size: 10 } } },
+    tooltip: {
+      backgroundColor: '#0e0f10', titleColor: '#ffd489', bodyColor: '#fff',
+      borderColor: '#0e0f10', borderWidth: 1, padding: 10,
+      titleFont: { family: "'JetBrains Mono'", size: 10, weight: 600 },
+      bodyFont: { family: "'JetBrains Mono'", size: 11 }
+    }
+  },
+  scales: baseScales(yMin, yMax)
+});
+
+// Weight (hero) — segments colored by phase
+new Chart(document.getElementById('weightChart'), {
+  type: 'line',
+  data: {
+    labels: T.labels,
+    datasets: [{
+      label: 'Body weight',
+      data: T.bodyweight,
+      borderColor: '#0e0f10',
+      segment: {
+        borderColor: (ctx) => colorForIndex(ctx.p1DataIndex),
+      },
+      backgroundColor: (ctx) => {
+        const { ctx: c, chartArea } = ctx.chart;
+        if (!chartArea) return 'rgba(14,15,16,0.04)';
+        const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        g.addColorStop(0, 'rgba(14,15,16,0.08)');
+        g.addColorStop(1, 'rgba(14,15,16,0)');
+        return g;
+      },
+      borderWidth: 2.2, pointRadius: 2.5, pointHoverRadius: 5,
+      pointBackgroundColor: (ctx) => colorForIndex(ctx.dataIndex),
+      pointBorderColor: '#0e0f10', pointBorderWidth: 1,
+      fill: true, tension: 0.3
+    }]
+  },
+  options: { ...commonOpts(78, 120), plugins: { ...commonOpts(78,120).plugins, legend: { display: false } } },
+  plugins: [phasePlugin(PHASE_COLORS)]
+});
+
+// Fat
+new Chart(document.getElementById('fatChart'), {
+  type: 'line',
+  data: {
+    labels: T.labels,
+    datasets: [{
+      label: 'Body fat %', data: T.fatPct,
+      borderColor: '#b8362b',
+      backgroundColor: 'rgba(184,54,43,0.08)',
+      borderWidth: 1.6, pointRadius: 1.2, pointHoverRadius: 4,
+      pointBackgroundColor: '#b8362b', fill: true, tension: 0.3
+    }]
+  },
+  options: { ...commonOpts(8, 30), plugins: { ...commonOpts(8,30).plugins, legend: { display: false } } },
+  plugins: [phasePlugin(PHASE_COLORS)]
+});
+
+// Absolute
+new Chart(document.getElementById('absChart'), {
+  type: 'line',
+  data: {
+    labels: T.labels,
+    datasets: [
+      liftDs('Bench',    T.benchAbs,    '#b76a00'),
+      liftDs('Squat',    T.squatAbs,    '#2d7a3a'),
+      liftDs('Deadlift', T.deadliftAbs, '#6b3fa0'),
+    ]
+  },
+  options: commonOpts(60, 195),
+  plugins: [phasePlugin(PHASE_COLORS)]
+});
+
+// Relative
+new Chart(document.getElementById('relChart'), {
+  type: 'line',
+  data: {
+    labels: T.labels,
+    datasets: [
+      liftDs('Bench',    T.benchRel,    '#b76a00'),
+      liftDs('Squat',    T.squatRel,    '#2d7a3a'),
+      liftDs('Deadlift', T.deadliftRel, '#6b3fa0'),
+      { label: '1.0× BW', data: T.labels.map(()=>1.0), borderColor: 'rgba(14,15,16,0.35)',
+        borderWidth: 1, borderDash: [3,4], pointRadius: 0, fill: false }
+    ]
+  },
+  options: commonOpts(0.5, 2.3),
+  plugins: [phasePlugin(PHASE_COLORS)]
+});
+
+function liftDs(label, data, color) {
+  return {
+    label, data, borderColor: color, backgroundColor: 'transparent',
+    borderWidth: 1.6, pointRadius: 1.2, pointHoverRadius: 4,
+    pointBackgroundColor: color, tension: 0.3, spanGaps: false
+  };
+}
+</script>
+</body>
+</html>
