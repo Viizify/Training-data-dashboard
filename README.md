@@ -21,7 +21,7 @@ A personal training case study visualizing 39 months of body composition and str
 | Metric | Start | End | Change |
 |---|---|---|---|
 | Body weight | 115 kg | 84 kg | −31 kg |
-| Body fat | 27% | 14% | −13 pp |
+| Body fat | 27% | 14% | −13 % |
 | Bench 1RM | 84 kg | 116 kg | +32 kg |
 | Squat 1RM | 90 kg | 126 kg | +36 kg |
 | Deadlift 1RM | 108 kg | 171 kg | +63 kg |
